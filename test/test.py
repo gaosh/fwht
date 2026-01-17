@@ -4,7 +4,7 @@ from functools import partial
 import einops
 import torch
 
-from fwht.kernel._fwht_triton import fast_hadamard_transform
+from fwht.kernel._interface import fast_hadamard_transform
 from fwht._hadamard import (
     _reference_fwht,
     hadamard
