@@ -4,7 +4,7 @@ import triton
 import triton.language as tl
 from fwht.kernel._fwht_triton import fwht
 from fwht.kernel._fwht_up_triton import fwht_up
-
+from fwht._hadamard import hadamard
 import argparse
 
 # ============================================================
