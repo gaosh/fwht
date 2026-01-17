@@ -35,8 +35,12 @@ def fwht_256_2step_kernel_fp32acc(
 
 
 @triton.autotune(
-    configs=[triton.Config(kwargs={}, num_warps=4)],
-    key=["WORK_SIZE"],
+    configs=[
+        triton.Config({}, num_warps=2),
+        triton.Config({}, num_warps=4),
+        triton.Config({}, num_warps=8),
+    ],
+    key=["WORK_SIZE", "K"],
 )
 @triton.jit
 def fwht_256_kernel_up_fused(
