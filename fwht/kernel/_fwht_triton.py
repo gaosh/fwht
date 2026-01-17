@@ -15,8 +15,8 @@ def fwht_256_2step_kernel(
     batch_size: tl.constexpr = A_SIZE // (BASE_SIZE ** 2)
     ar = a.reshape(batch_size, BASE_SIZE, BASE_SIZE)
     br = base.expand_dims(0).broadcast_to(batch_size, BASE_SIZE, BASE_SIZE)
-    left = tl.dot(br, ar, out_dtype=a.dtype)
-    return tl.dot(left, br, out_dtype=a.dtype).reshape(A_SIZE)
+    left = tl.dot(br, ar,  out_dtype=tl.float32).to(a.dtype)
+    return tl.dot(left, br,  out_dtype=tl.float32).to(a.dtype).reshape(A_SIZE)
     
 @triton.autotune(configs=[
         triton.Config(kwargs={}, num_warps=4),
@@ -59,8 +59,8 @@ def fwht_256_kernel(
         mat = tl.dot(
             base.expand_dims(0).broadcast_to(BATCH_SIZE, BASE_SIZE, BASE_SIZE), 
             mat,
-            out_dtype=a.dtype
-        )
+            out_dtype=tl.float32
+        ).to(a.dtype)
         a = mat.reshape(WORK_SIZE)
 
     # use cuda cores for smaller cases than 256
