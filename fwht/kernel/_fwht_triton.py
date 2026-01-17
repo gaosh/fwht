@@ -18,10 +18,14 @@ def fwht_256_2step_kernel(
     left = tl.dot(br, ar,  out_dtype=tl.float32).to(a.dtype)
     return tl.dot(left, br,  out_dtype=tl.float32).to(a.dtype).reshape(A_SIZE)
     
-@triton.autotune(configs=[
-        triton.Config(kwargs={}, num_warps=4),
+@triton.autotune(
+    configs=[
+        triton.Config({}, num_warps=2),
+        triton.Config({}, num_warps=4),
+        triton.Config({}, num_warps=8),
     ],
-    key=['WORK_SIZE'])
+    key=["WORK_SIZE"],
+)
 @triton.jit
 def fwht_256_kernel(
     a_ptr,
