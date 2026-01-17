@@ -3,7 +3,7 @@ import math
 from torch import nn
 
 from fwht.kernel._fwht_triton import fwht
-from fwht.kernel._fwht_up_trition import fwht_up
+from fwht.kernel._fwht_up_triton import fwht_up
 
 class HadamardTransformAutograd(torch.autograd.Function):
     @staticmethod
