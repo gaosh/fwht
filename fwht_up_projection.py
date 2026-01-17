@@ -2,7 +2,7 @@ import math
 import torch
 import triton
 import triton.language as tl
-from fwht.kernel._fwht_triton import fwht as fwht_fn
+from fwht.kernel._fwht_triton import fwht
 
 import argparse
 
