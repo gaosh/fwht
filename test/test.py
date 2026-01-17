@@ -9,6 +9,7 @@ from fwht._hadamard import (
     _reference_fwht,
     hadamard
 )
+import sys
 
 DEVICE = 'cuda'
 
@@ -87,6 +88,12 @@ def test_fwht_276_implicit_pad():
     expected1 = einops.einsum(
         H, right_zero_pad(a.clone(), 512).double(), 'r c, b c -> b r').float()
     actual = fast_hadamard_transform(a)
+
+    print("[test_fwht_276_implicit_pad]")
+    print(f"  expected shape: {expected1[:, :size].shape}")
+    print(f"  actual   shape: {actual.shape}")
+    print(f"  max abs diff   : {(expected1[:, :size] - actual).abs().max().item():.3e}")
+
     assert torch.allclose(expected1[:, :size], actual, atol=1e-3)
 
 def test_fwht_4096_f16():
@@ -95,4 +102,28 @@ def test_fwht_4096_f16():
     a = torch.randn(8, size, device=DEVICE, dtype=torch.float16)
     expected = _reference_fwht(a.clone())
     actual = fast_hadamard_transform(a, scale)
+
+    print("[test_fwht_4096_f16]")
+    print(f"  expected shape: {expected.shape}")
+    print(f"  actual   shape: {actual.shape}")
+    print(f"  max abs diff  : {(expected - actual).abs().max().item():.3e}")
+
     assert torch.allclose(expected, actual, atol=1 * scale)
+
+def main():
+    print(f"Running FWHT tests on device: {DEVICE}")
+    print("=" * 60)
+
+    try:
+        test_fwht_276_implicit_pad()
+        print("-" * 60)
+        test_fwht_4096_f16()
+    except AssertionError:
+        print("\n❌ TEST FAILED")
+        sys.exit(1)
+
+    print("\n✅ ALL TESTS PASSED")
+
+
+if __name__ == "__main__":
+    main()
