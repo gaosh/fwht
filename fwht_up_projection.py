@@ -3,6 +3,7 @@ import torch
 import triton
 import triton.language as tl
 from fwht.kernel._fwht_triton import fwht
+from fwht.kernel._fwht_up_triton import fwht_up
 
 import argparse
 
@@ -133,6 +134,28 @@ def dense_mm_baseline(
     return x2.view(B, T, D)
 
 
+# ============================================================
+# Test target: fwht_up(u_btk, idx, D, normalized)
+# ============================================================
+def test_fwht_up(
+    u_btk: torch.Tensor,
+    idx: torch.Tensor,
+    D: int,
+    normalized: bool = True,
+):
+    """
+    Compares fwht_up() to a known-correct baseline: index_add + fwht.
+    """
+    x_up = fwht_up(u_btk, idx, D=D, normalized=normalized)
+    x_ref = up_project_fwht_index_add(u_btk, idx, D=D, normalized=normalized)
+
+    diff = (x_up - x_ref).abs()
+    print("[check] fwht_up vs index_add+FWHT (should match):")
+    print(f"  max_abs  = {diff.max().item():.3e}")
+    print(f"  mean_abs = {diff.mean().item():.3e}")
+    return x_up
+
+
 def benchmark(fn, iters=200, warmup=50):
     torch.cuda.synchronize()
     for _ in range(warmup):
@@ -170,16 +193,12 @@ def main():
     assert D & (D - 1) == 0, "D must be power-of-2 for FWHT"
     assert K <= D, "K must be <= D for index set into [0,D)"
 
-    # User-chosen fixed set S: for test we sample unique indices.
-    # Replace idx with your fixed S.
+    # user-chosen fixed set S: sample unique indices for test
     idx = torch.randperm(D, device=device)[:K].contiguous()
-
     u = torch.randn((B, T, K), device=device, dtype=dtype)
 
-    # 1) Triton scatter + FWHT (normalized)
+    # --- existing checks ---
     x_triton = up_project_fwht_triton_scatter(u, idx, D=D, normalized=True)
-
-    # 2) torch.index_add + FWHT (normalized) - should match (same operator)
     x_index_add = up_project_fwht_index_add(u, idx, D=D, normalized=True)
 
     diff = (x_triton - x_index_add).abs()
@@ -188,21 +207,25 @@ def main():
     print(f"  mean_abs = {diff.mean().item():.3e}")
     print("  shape:", tuple(x_triton.shape))
 
-    # 3) Regular dense MM baseline (different operator; only shape check)
+    # --- NEW: test fwht_up correctness ---
+    x_up = test_fwht_up(u, idx, D=D, normalized=True)
+    print("  fwht_up shape:", tuple(x_up.shape))
+
+    # dense mm baseline (shape + optional perf)
     W = torch.randn((K, D), device=device, dtype=dtype)
     x_dense = dense_mm_baseline(u, W)
     print("[dense mm] u @ W shape:", tuple(x_dense.shape))
 
     if args.bench:
-        ms_triton = benchmark(lambda: up_project_fwht_triton_scatter(u, idx, D=D, normalized=True),
-                             iters=args.iters)
-        ms_indexadd = benchmark(lambda: up_project_fwht_index_add(u, idx, D=D, normalized=True),
-                               iters=args.iters)
+        ms_up = benchmark(lambda: fwht_up(u, idx, D=D, normalized=True), iters=args.iters)
+        ms_triton = benchmark(lambda: up_project_fwht_triton_scatter(u, idx, D=D, normalized=True), iters=args.iters)
+        ms_indexadd = benchmark(lambda: up_project_fwht_index_add(u, idx, D=D, normalized=True), iters=args.iters)
         ms_dense = benchmark(lambda: dense_mm_baseline(u, W), iters=args.iters)
 
         N = B * T
         print("\n[timing] (avg over iters)")
-        print(f"  Triton scatter + FWHT : {ms_triton:.4f} ms   (N={N}, K={K}, D={D})")
+        print(f"  fwht_up (fused)       : {ms_up:.4f} ms   (N={N}, K={K}, D={D})")
+        print(f"  Triton scatter + FWHT : {ms_triton:.4f} ms")
         print(f"  index_add + FWHT      : {ms_indexadd:.4f} ms")
         print(f"  dense mm (u@W)        : {ms_dense:.4f} ms")
 
