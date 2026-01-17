@@ -3,21 +3,8 @@ import torch
 import triton
 import triton.language as tl
 from fwht.kernel._fwht_triton import fwht as fwht_fn
-# -----------------------------
-# 1) Triton scatter: u (N,K) -> out (N,D) with out[:, idx[k]] = u[:, k]
-# -----------------------------
-# fwht_up_main.py
-import math
+
 import argparse
-import torch
-
-import triton
-import triton.language as tl
-
-# ---- import your FWHT here (the one you pasted earlier) ----
-# Adjust this import to match your repo structure.
-from fwht import fwht  # <-- change if needed
-
 
 # ============================================================
 # Triton scatter: u (N,K) -> out (N,D) with out[:, idx[k]] = u[:, k]
